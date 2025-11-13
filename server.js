@@ -1,46 +1,48 @@
-import { Client, GatewayIntentBits, Collection } from 'discord.js';
-import { ping, say } from './commands.js'; // import your commands
+import 'dotenv/config';
+import { Client, GatewayIntentBits, Collection, REST, Routes } from 'discord.js';
+import { ping, say } from './commands.js';
 
-// Create the Discord client
-const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+
+// Register commands collection
+client.commands = new Collection();
+const commands = [ping, say];
+commands.forEach(cmd => client.commands.set(cmd.data.name, cmd));
+
+// Register slash commands with Discord
+const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
+(async () => {
+  try {
+    console.log('Started refreshing application (/) commands.');
+
+    await rest.put(
+      Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+      { body: commands.map(c => c.data) }
+    );
+
+    console.log('Successfully reloaded application (/) commands.');
+  } catch (error) {
+    console.error(error);
+  }
+})();
+
+// Handle interactions
+client.on('interactionCreate', async interaction => {
+  if (!interaction.isCommand()) return;
+
+  const command = client.commands.get(interaction.commandName);
+  if (!command) return;
+
+  try {
+    await command.execute(interaction);
+  } catch (error) {
+    console.error(error);
+    await interaction.reply({ content: 'There was an error executing that command!', ephemeral: true });
+  }
 });
 
-// Register commands
-client.commands = new Collection();
-const commands = { ping, say };
-for (const [name, command] of Object.entries(commands)) {
-  client.commands.set(name, command);
-}
-
-// Bot ready
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}!`);
 });
 
-// Listen to messages
-client.on('messageCreate', async (message) => {
-  if (message.author.bot) return;
-  if (!message.content.startsWith('!')) return;
-
-  const args = message.content.slice(1).trim().split(/ +/);
-  const commandName = args.shift().toLowerCase();
-
-  const command = client.commands.get(commandName);
-  if (!command) return;
-
-  try {
-    await command.execute(message, args);
-  } catch (error) {
-    console.error(error);
-    message.reply('There was an error executing that command!');
-  }
-});
-
-// Login using GitHub Secret (environment variable)
-const token = process.env.TOKEN; // GitHub Actions will inject this
-if (!token) {
-  console.error('Error: TOKEN not found in environment variables!');
-  process.exit(1);
-}
-client.login(token);
+client.login(process.env.TOKEN);
