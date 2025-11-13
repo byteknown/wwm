@@ -2,8 +2,23 @@
 import 'dotenv/config';
 import { Client, GatewayIntentBits, Collection, REST, Routes } from 'discord.js';
 import { ping, say } from './commands.js';
+import express from 'express';
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.get('/', (req, res) => {
+  res.send('Discord bot is running!');
+});
+
+app.listen(PORT, () => {
+  console.log(`Render keep-alive server running on port ${PORT}`);
+});
+
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+
+
 
 // Register commands in a collection
 client.commands = new Collection();
