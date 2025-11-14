@@ -40,7 +40,7 @@ export async function execute(interaction) {
   // If name belongs to someone else → block
   if (existingName && existingName.discord_id !== interaction.user.id) {
     return await interaction.reply({
-      content: `❌ The name **${ingameName}** is already registered by someone else.`,
+      content: `❌ El nombre **${ingameName}** ya está registrado.`,
       ephemeral: true
     });
   }
@@ -67,7 +67,7 @@ export async function execute(interaction) {
     }
 
     return await interaction.reply({
-      content: `🔄 Updated your in-game name to **${ingameName}**!`,
+      content: `🔄 Se ha actualizado to nombre a **${ingameName}**!`,
       ephemeral: true
     });
   }
@@ -87,7 +87,7 @@ export async function execute(interaction) {
   }
 
   return await interaction.reply({
-    content: `✅ Registered your in-game name as **${ingameName}**!`,
+    content: `✅ Registrado exitosamente: **${ingameName}**!`,
     ephemeral: true
   });
 }
