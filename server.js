@@ -10,13 +10,8 @@ import whoami from "./commands/whoami.js";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get('/', (req, res) => {
-  res.send('Discord bot is running!');
-});
-
-app.listen(PORT, () => {
-  console.log(`Render keep-alive server running on port ${PORT}`);
-});
+app.get('/', (req, res) => res.send('Discord bot is running!'));
+app.listen(PORT, () => console.log(`Render keep-alive server running on port ${PORT}`));
 
 // -------------------------------
 // Discord Bot Setup
@@ -24,18 +19,24 @@ app.listen(PORT, () => {
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 client.commands = new Collection();
-const commands = [register.data.toJSON(), whoami];
-commands.forEach(cmd => client.commands.set(cmd.data.name, cmd));
+const commandList = [register, whoami];
 
+// Add commands to collection
+commandList.forEach(cmd => client.commands.set(cmd.data.name, cmd));
+
+// -------------------------------
+// Register slash commands with Discord
+// -------------------------------
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 
 (async () => {
   try {
     console.log('Refreshing slash commands…');
 
+    // Convert all .data to JSON for registration
     await rest.put(
       Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
-      { body: commands.map(c => c.data) }
+      { body: commandList.map(c => c.data.toJSON()) }
     );
 
     console.log('Slash commands registered.');
@@ -44,8 +45,11 @@ const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
   }
 })();
 
+// -------------------------------
+// Handle interactions
+// -------------------------------
 client.on('interactionCreate', async interaction => {
-  if (!interaction.isCommand()) return;
+  if (!interaction.isChatInputCommand()) return;
 
   const command = client.commands.get(interaction.commandName);
   if (!command) return;
@@ -54,10 +58,9 @@ client.on('interactionCreate', async interaction => {
     await command.execute(interaction);
   } catch (err) {
     console.error(err);
-    await interaction.reply({
-      content: 'Error executing command',
-      ephemeral: true,
-    });
+    if (!interaction.replied) {
+      await interaction.reply({ content: '❌ Error executing command', ephemeral: true });
+    }
   }
 });
 
