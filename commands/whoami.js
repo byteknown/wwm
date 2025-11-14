@@ -26,13 +26,13 @@ export default {
     if (!row) {
       return interaction.reply({
         content: "❌ Aún no te has registrado. Usa /registro <nombre>.",
-        ephemeral: true
+        flags: 64
       });
     }
 
     await interaction.reply({
       content: `✅ Tu nombre en el juego es **${row.ingame_name}**.`,
-      ephemeral: true
+      flags: 64
     });
   }
 };
