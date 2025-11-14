@@ -1,24 +1,38 @@
-import db from '../database/db.js';
+import sqlite3 from "sqlite3";
+import { open } from "sqlite";
+import { SlashCommandBuilder } from "discord.js";
 
-export const whoami = {
-  data: {
-    name: 'yo',
-    description: 'Comprueba tus datos',
-  },
+const sqlite = sqlite3.verbose();
+
+export default {
+  data: new SlashCommandBuilder()
+    .setName("yo")
+    .setDescription("Comprueba tus datos"),
+
   async execute(interaction) {
     const discordId = interaction.user.id;
-    const row = db.prepare('SELECT ingame_name FROM users WHERE discord_id = ?').get(discordId);
+
+    // Open DB
+    const db = await open({
+      filename: "./database/users.sqlite",
+      driver: sqlite.Database
+    });
+
+    const row = await db.get(
+      "SELECT ingame_name FROM users WHERE discord_id = ?",
+      discordId
+    );
 
     if (!row) {
-      await interaction.reply({
-        content:"❌ Aún no te has registrado. Usa /registro <nombre>.",
-        ephemeral: true
-      });
-    } else {
-      await interaction.reply({
-        content:`✅ Tu nombre en el juego es **${row.ingame_name}**.`,
+      return interaction.reply({
+        content: "❌ Aún no te has registrado. Usa /registro <nombre>.",
         ephemeral: true
       });
     }
-  },
+
+    await interaction.reply({
+      content: `✅ Tu nombre en el juego es **${row.ingame_name}**.`,
+      ephemeral: true
+    });
+  }
 };
