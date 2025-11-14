@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
 import { Client, GatewayIntentBits, Collection, REST, Routes } from 'discord.js';
+import register from "./commands/register.js";
+import whoami from "./commands/whoami.js";
 
 // -------------------------------
 // Fake port server for Render
@@ -22,7 +24,7 @@ app.listen(PORT, () => {
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 client.commands = new Collection();
-const commands = [register];
+const commands = [register, whoami];
 commands.forEach(cmd => client.commands.set(cmd.data.name, cmd));
 
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
