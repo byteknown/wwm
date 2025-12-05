@@ -14,7 +14,7 @@ export default {
 
     // Open DB
     const db = await open({
-      filename: "/var/data/users.sqlite", // persistent path
+      filename: "/var/data/users.sqlite",
       driver: sqlite.Database
     });
 
@@ -37,7 +37,6 @@ export default {
     
     let skillRows = [];
     if (tableExists) {
-      // Fetch skills for this user
       skillRows = await db.all(
         "SELECT role, weapon1, weapon2, score, created_at FROM skills WHERE discord_id = ?",
         discordId
@@ -49,7 +48,11 @@ export default {
       skillText = "❌ No skills found.";
     } else {
       skillText = skillRows.map(s => 
-        `🗡 **Type:** ${s.type}\n• Weapon 1: ${s.weapon1 ?? "❌"}\n• Weapon 2: ${s.weapon2 ?? "❌"}\n• Score: ${s.score ?? "❌"}\n• Updated: ${s.created_at}`
+        `🗡 **Type:** ${s.role}\n` +
+        `• Weapon 1: ${s.weapon1 ?? "❌"}\n` +
+        `• Weapon 2: ${s.weapon2 ?? "❌"}\n` +
+        `• Score: ${s.score ?? "❌"}\n` +
+        `• Updated: ${s.created_at}`
       ).join("\n\n");
     }
 
