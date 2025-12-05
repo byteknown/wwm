@@ -31,11 +31,18 @@ export default {
       });
     }
 
-    // Fetch skills for this user
-    const skillRows = await db.all(
-      "SELECT role, weapon1, weapon2, score, created_at FROM skills WHERE discord_id = ?",
-      discordId
+    const tableExists = await db.get(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='skills';"
     );
+    
+    let skillRows = [];
+    if (tableExists) {
+      // Fetch skills for this user
+      skillRows = await db.all(
+        "SELECT role, weapon1, weapon2, score, created_at FROM skills WHERE discord_id = ?",
+        discordId
+      );
+    }
 
     let skillText = "";
     if (skillRows.length === 0) {
