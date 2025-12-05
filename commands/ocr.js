@@ -5,10 +5,10 @@ import Tesseract from "tesseract.js";
 export default {
   data: new SlashCommandBuilder()
     .setName("ocr")
-    .setDescription("Extract martial skills and goose score from a WWM screenshot")
+    .setDescription("Extract martial skills and goose score from WWM screenshot")
     .addAttachmentOption(opt =>
       opt.setName("image")
-        .setDescription("Upload your build screenshot")
+        .setDescription("Upload your screenshot")
         .setRequired(true)
     ),
 
@@ -17,39 +17,38 @@ export default {
 
     if (!image.contentType?.startsWith("image/")) {
       return interaction.reply({
-        content: "❌ Please upload a valid **image file**.",
+        content: "❌ Upload a valid image file.",
         ephemeral: true
       });
     }
 
-    await interaction.reply("🔍 Reading image… please wait.");
+    await interaction.reply("🔍 Reading image…");
 
     try {
-      // Run OCR
-      const { data } = await Tesseract.recognize(image.url, "eng");
-      const raw = data.text || "";
-      const text = raw.replace(/\s+/g, " ").trim(); // Clean spacing
+      const result = await Tesseract.recognize(image.url, "eng", {
+        workerPath: "https://cdn.jsdelivr.net/npm/tesseract.js/dist/worker.min.js",
+        langPath: "https://tessdata.projectnaptha.com/4.0.0",
+        corePath: "https://cdn.jsdelivr.net/npm/tesseract.js-core@2.2.0/tesseract-core.wasm.js",
+      });
 
-      // Pattern searches
+      const text = result.data.text.replace(/\s+/g, " ").trim();
+
+      // Extract values
       const martial1 = text.match(/Nameless Sword/i)?.[0] ?? null;
       const martial2 = text.match(/Strategic Sword/i)?.[0] ?? null;
-      const gooseMatch = text.match(/(\d+\.\d+)\s*Goose/i);
-      const gooseScore = gooseMatch ? gooseMatch[1] : null;
+      const gooseScore = text.match(/(\d+\.\d+)\s*Goose/i)?.[1] ?? null;
 
-      // Build response message
-      let output = `📝 **OCR Text Extracted:**\n\`\`\`${text}\`\`\``;
+      let msg = `📝 **OCR text:**\n\`\`\`${text}\`\`\``;
+      msg += `\n\n🔎 Detected:`;
+      msg += `\n• Nameless Sword: **${martial1 ?? "❌"}**`;
+      msg += `\n• Strategic Sword: **${martial2 ?? "❌"}**`;
+      msg += `\n• Goose Score: **${gooseScore ?? "❌"}**`;
 
-      output += `\n\n🔎 **Detected Values:**`;
-
-      output += `\n• Martial 1: **${martial1 ?? "❌ Not detected"}**`;
-      output += `\n• Martial 2: **${martial2 ?? "❌ Not detected"}**`;
-      output += `\n• Goose Score: **${gooseScore ?? "❌ Not detected"}**`;
-
-      return interaction.editReply(output);
+      return interaction.editReply(msg);
 
     } catch (err) {
       console.error(err);
-      return interaction.editReply("❌ OCR failed. Please try again with a clearer screenshot.");
+      return interaction.editReply("❌ OCR failed.");
     }
   }
 };
