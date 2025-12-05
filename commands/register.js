@@ -30,7 +30,7 @@ export default {
     const member = await guild.members.fetch(interaction.user.id);
 
     const db = await open({
-      filename: "./database/users.sqlite",
+      filename: "/var/data/users.sqlite", // persistent path
       driver: sqlite.Database,
     });
 

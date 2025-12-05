@@ -2,8 +2,8 @@ import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 
-// Ensure database folder exists
-const dbPath = path.join('./database', 'db.sqlite');
+// Use Render persistent disk
+const dbPath = path.join('/var/data', 'db.sqlite'); // <-- persistent path
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
 const db = new Database(dbPath);
@@ -17,3 +17,4 @@ db.prepare(`
 `).run();
 
 export default db;
+

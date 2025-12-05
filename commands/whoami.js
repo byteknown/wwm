@@ -14,7 +14,7 @@ export default {
 
     // Open DB
     const db = await open({
-      filename: "./database/users.sqlite",
+      filename: "/var/data/users.sqlite", // persistent path
       driver: sqlite.Database
     });
 

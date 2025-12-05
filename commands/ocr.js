@@ -73,7 +73,7 @@ export default {
       }
 
       const db = await open({
-        filename: "./database/users.sqlite",
+        filename: "/var/data/users.sqlite", // persistent path
         driver: sqlite.Database,
       });
 
@@ -100,7 +100,7 @@ process.on("exit", async () => {
 
 async function saveSkills(discordId, ingameName, role, detectedWeapons, score) {
   const db = await open({
-    filename: "./database/users.sqlite",
+    filename: "/var/data/users.sqlite", // persistent path
     driver: sqlite.Database,
   });
 
