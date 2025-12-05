@@ -6,16 +6,11 @@ import path from "path";
 let workerPromise = Tesseract.createWorker({
   workerPath: path.resolve("./node_modules/tesseract.js/dist/worker.min.js"),
   corePath: path.resolve("./node_modules/tesseract.js/dist/tesseract-core.wasm.js"),
+  logger: m => console.log(m), // optional: logs progress
 });
 
-// Load and initialize the worker once
-const ready = (async () => {
-  const w = await workerPromise;
-  await w.load();
-  await w.loadLanguage(["eng"]);    // language as array
-  await w.initialize(["eng"]);      // language as array
-  return w;
-})();
+// No need to call load/loadLanguage/initialize in v5
+const ready = workerPromise;
 
 export default {
   data: new SlashCommandBuilder()
@@ -30,7 +25,7 @@ export default {
   async execute(interaction) {
     const image = interaction.options.getAttachment("image");
 
-    if (!image.contentType?.startsWith("image/")) {
+    if (!image?.contentType?.startsWith("image/")) {
       return interaction.reply({
         content: "❌ Upload a valid image file.",
         ephemeral: true
@@ -40,10 +35,10 @@ export default {
     await interaction.reply("🔍 Reading image…");
 
     try {
-      const worker = await ready; // wait for worker to be ready
+      const worker = await ready;
 
-      // Pass language as array
-      const { data } = await worker.recognize(image.url, ["eng"]);
+      // Pass language as string for v5
+      const { data } = await worker.recognize(image.url, "eng");
       const text = data.text.replace(/\s+/g, " ").trim();
 
       // Extract values
@@ -68,6 +63,6 @@ export default {
 
 // Optional: terminate worker on process exit
 process.on("exit", async () => {
-  const w = await workerPromise;
-  await w.terminate();
+  const worker = await workerPromise;
+  await worker.terminate();
 });
