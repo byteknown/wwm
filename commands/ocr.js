@@ -50,7 +50,7 @@ export default {
 
 
       // Build message
-      const msg = `📝 **OCR text:**\n\`\`\`${text}\`\`\`\n\n🔎 Detected:\n• ${detected.join("\n• ")}\n• Goose Score: **${gooseScore}**`;
+      const msg = `🔎 Detected:\n• ${detected.join("\n• ")}\n• Goose Score: **${gooseScore}**`;
 
       await interaction.editReply(msg);
 
