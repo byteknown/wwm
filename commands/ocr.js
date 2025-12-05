@@ -72,7 +72,12 @@ export default {
         role = "Melee DPS";
       }
 
-      await saveSkills(interaction.user.id, ingameName, role, detected, gooseScore);
+      const ingame_name = await db.get(
+        "SELECT ingame_name FROM users WHERE discord_id = ?",
+        interaction.user.id
+      );
+
+      await saveSkills(interaction.user.id, ingame_name, role, detected, gooseScore);
 
     } catch (err) {
       console.error("OCR failed:", err);
