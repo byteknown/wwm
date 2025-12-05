@@ -47,23 +47,22 @@ export default {
 
       const gooseScore = match ? parseFloat(match[1]) : 0;
 
-
       // Default role
-      const role = (() => {
-        if (detected.some(d => d.includes("Panacea Fan")) &&
-            detected.some(d => d.includes("Soulshade Umbrella"))) {
-          return "Healer";
-        }
-        if (detected.some(d => d.includes("Stormbreaker Spear")) &&
-            detected.some(d => d.includes("Thundercry Blade"))) {
-          return "Tank";
-        }
-        if (detected.some(d => d.includes("Ninefold Umbrella")) &&
-            detected.some(d => d.includes("Inkwell Fan"))) {
-          return "Ranged DPS";
-        }
-        return "Melee DPS";
-      })();
+      function hasWeapon(name, detected) {
+        return detected.some(d => d.startsWith(name) && !d.includes("❌"));
+      }
+
+      let role = "Melee DPS";
+
+      if (hasWeapon("Panacea Fan", detected) && hasWeapon("Soulshade Umbrella", detected)) {
+        role = "Healer";
+      }
+      else if (hasWeapon("Stormbreaker Spear", detected) && hasWeapon("Thundercry Blade", detected)) {
+        role = "Tank";
+      }
+      else if (hasWeapon("Ninefold Umbrella", detected) && hasWeapon("Inkwell Fan", detected)) {
+        role = "Ranged DPS";
+      }
 
       const msg = `📝 **OCR text:**\n\`\`\`${text}\`\`\`\n\n🔎 Detected:\n• ${role}\n• ${detected.join("\n• ")}\n• Goose Score: **${gooseScore}**`;
 
