@@ -50,22 +50,28 @@ export default {
 
 
       // Build message
-      const msg = `🔎 Detected:\n• ${detected.join("\n• ")}\n• Goose Score: **${gooseScore}**`;
+      const msg = `📝 **OCR text:**\n\`\`\`${text}\`\`\`\n\n🔎 Detected:\n• ${detected.join("\n• ")}\n• Goose Score: **${gooseScore}**`;
 
       await interaction.editReply(msg);
 
       var role = "Unknown Role";
 
-      if(detected[0].includes("Panacea Fan") || detected[1].includes("Panacea Fan")
-         && detected[0].includes("Soulshade Umbrella") || detected[1].includes("Soulshade Umbrella")){
+      if(
+        (detected[0].includes("Panacea Fan") || detected[1].includes("Panacea Fan"))
+         && (detected[0].includes("Soulshade Umbrella") || detected[1].includes("Soulshade Umbrella"))
+        ){
         role = "Healer";
       }
-      if(detected[0].includes("Stormbreaker Spear") || detected[1].includes("Stormbreaker Spear")
-         && detected[0].includes("Thundercry Blade") || detected[1].includes("Thundercry Blade")){
+      if(
+        (detected[0].includes("Stormbreaker Spear") || detected[1].includes("Stormbreaker Spear"))
+         && (detected[0].includes("Thundercry Blade") || detected[1].includes("Thundercry Blade"))
+        ){
         role = "Tank";
       }
-      if(detected[0].includes("Ninefold Umbrella") || detected[1].includes("Ninefold Umbrella")
-         && detected[0].includes("Inkwell Fan") || detected[1].includes("Inkwell Fan")){
+      if(
+        (detected[0].includes("Ninefold Umbrella") || detected[1].includes("Ninefold Umbrella"))
+         && (detected[0].includes("Inkwell Fan") || detected[1].includes("Inkwell Fan"))
+        ){
         role = "Ranged DPS";
       }
       else{
