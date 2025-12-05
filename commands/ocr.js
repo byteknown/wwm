@@ -38,9 +38,11 @@ export default {
       });
 
       // Detect goose score
-      const gooseScore = parseFloat(
-        text.match(/(\d+(?:\.\d+)?)[^\dA-Za-z]{0,5}([GC0]oose)/i)?.[1] ?? 0
-      );
+      // Matches a number immediately before "Goose", "Goo0se", or OCR variants
+      const match = text.match(/(\d+(?:\.\d+)?)(?:[^\dA-Za-z]{0,5})(Goose|Goo0se|Coose|0oose|Coo0se)/i);
+
+      const gooseScore = match ? parseFloat(match[1]) : 0;
+
 
 
       // Build message
