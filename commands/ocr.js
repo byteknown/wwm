@@ -5,8 +5,7 @@ import path from "path";
 // Create a worker promise
 let workerPromise = Tesseract.createWorker({
   workerPath: path.resolve("./node_modules/tesseract.js/dist/worker.min.js"),
-  corePath: path.resolve("./node_modules/tesseract.js/dist/tesseract-core.wasm.js"),
-  logger: m => console.log(m), // optional: logs progress
+  corePath: path.resolve("./node_modules/tesseract.js/dist/tesseract-core.wasm.js")
 });
 
 // No need to call load/loadLanguage/initialize in v5
