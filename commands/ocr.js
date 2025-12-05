@@ -1,20 +1,17 @@
-// commands/ocr.js
 import { SlashCommandBuilder } from "discord.js";
-import Tesseract from "tesseract.js"; // default import
+import Tesseract from "tesseract.js";  // or `import { createWorker } from 'tesseract.js';`
 import path from "path";
 
-// --- Create worker ---
-const worker = Tesseract.createWorker({
+let workerPromise = Tesseract.createWorker({
   workerPath: path.resolve("./node_modules/tesseract.js/dist/worker.min.js"),
   corePath: path.resolve("./node_modules/tesseract.js/dist/tesseract-core.wasm.js"),
-  langPath: path.resolve("./node_modules/tesseract.js/dist/lang/")
+  // langPath not always needed; Tesseract.js ships with bundled trained data
 });
 
-// --- Initialize once (promise) ---
-const workerReady = (async () => {
-  await worker.load();
-  await worker.loadLanguage("eng");
-  await worker.initialize("eng");
+// optional: load the worker once and reuse
+const ready = (async () => {
+  const w = await workerPromise;
+  return w;  // already “ready”
 })();
 
 export default {
@@ -41,7 +38,7 @@ export default {
 
     try {
       // Wait for worker to be ready
-      await workerReady;
+      const worker = await ready;
 
       const { data } = await worker.recognize(image.url);
       const text = data.text.replace(/\s+/g, " ").trim();
@@ -68,5 +65,6 @@ export default {
 
 // Optional: terminate worker on process exit
 process.on("exit", async () => {
-  await worker.terminate();
+  const w = await workerPromise;
+  await w.terminate();
 });
