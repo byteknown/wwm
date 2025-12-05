@@ -1,6 +1,21 @@
 // commands/ocr.js
 import { SlashCommandBuilder } from "discord.js";
-import Tesseract from "tesseract.js";
+import { createWorker } from "tesseract.js";
+import path from "path";
+
+// Create a single worker instance and initialize it once
+const worker = createWorker({
+  workerPath: path.resolve("./node_modules/tesseract.js/dist/worker.min.js"),
+  corePath: path.resolve("./node_modules/tesseract.js/dist/tesseract-core.wasm.js"),
+  langPath: path.resolve("./node_modules/tesseract.js/dist/lang/")
+});
+
+// Promise to ensure worker is loaded/initialized only once
+const workerReady = (async () => {
+  await worker.load();
+  await worker.loadLanguage("eng");
+  await worker.initialize("eng");
+})();
 
 export default {
   data: new SlashCommandBuilder()
@@ -25,13 +40,11 @@ export default {
     await interaction.reply("🔍 Reading image…");
 
     try {
-      const result = await Tesseract.recognize(image.url, "eng", {
-        workerPath: "https://cdn.jsdelivr.net/npm/tesseract.js/dist/worker.min.js",
-        langPath: "https://tessdata.projectnaptha.com/4.0.0",
-        corePath: "https://cdn.jsdelivr.net/npm/tesseract.js-core@2.2.0/tesseract-core.wasm.js",
-      });
+      // Wait for worker to be ready
+      await workerReady;
 
-      const text = result.data.text.replace(/\s+/g, " ").trim();
+      const { data } = await worker.recognize(image.url);
+      const text = data.text.replace(/\s+/g, " ").trim();
 
       // Extract values
       const martial1 = text.match(/Nameless Sword/i)?.[0] ?? null;
@@ -52,3 +65,8 @@ export default {
     }
   }
 };
+
+// Optional: terminate worker on process exit
+process.on("exit", async () => {
+  await worker.terminate();
+});
