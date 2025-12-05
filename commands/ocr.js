@@ -72,6 +72,11 @@ export default {
         role = "Melee DPS";
       }
 
+      const db = await open({
+        filename: "./database/users.sqlite",
+        driver: sqlite.Database,
+      });
+
       const ingame_name = await db.get(
         "SELECT ingame_name FROM users WHERE discord_id = ?",
         interaction.user.id
