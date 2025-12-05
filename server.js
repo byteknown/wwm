@@ -3,6 +3,9 @@ import express from 'express';
 import { Client, GatewayIntentBits, Collection, REST, Routes } from 'discord.js';
 import register from "./commands/register.js";
 import whoami from "./commands/whoami.js";
+import ocr from "./commands/ocr.js";
+
+
 
 // -------------------------------
 // Fake port server for Render
@@ -19,7 +22,7 @@ app.listen(PORT, () => console.log(`Render keep-alive server running on port ${P
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 client.commands = new Collection();
-const commandList = [register, whoami];
+const commandList = [register, whoami, ocr];
 
 // Add commands to collection
 commandList.forEach(cmd => client.commands.set(cmd.data.name, cmd));
