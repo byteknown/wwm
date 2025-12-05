@@ -47,13 +47,6 @@ export default {
 
       const gooseScore = match ? parseFloat(match[1]) : 0;
 
-
-
-      // Build message
-      const msg = `📝 **OCR text:**\n\`\`\`${text}\`\`\`\n\n🔎 Detected:\n• ${detected.join("\n• ")}\n• Goose Score: **${gooseScore}**`;
-
-      await interaction.editReply(msg);
-
       var role = "Unknown Role";
 
       if(
@@ -62,13 +55,13 @@ export default {
         ){
         role = "Healer";
       }
-      if(
+      else if(
         (detected[0].includes("Stormbreaker Spear") || detected[1].includes("Stormbreaker Spear"))
          && (detected[0].includes("Thundercry Blade") || detected[1].includes("Thundercry Blade"))
         ){
         role = "Tank";
       }
-      if(
+      else if(
         (detected[0].includes("Ninefold Umbrella") || detected[1].includes("Ninefold Umbrella"))
          && (detected[0].includes("Inkwell Fan") || detected[1].includes("Inkwell Fan"))
         ){
@@ -77,6 +70,10 @@ export default {
       else{
         role = "Melee DPS";
       }
+
+      const msg = `📝 **OCR text:**\n\`\`\`${text}\`\`\`\n\n🔎 Detected:\n• ${role}\n• ${detected.join("\n• ")}\n• Goose Score: **${gooseScore}**`;
+
+      await interaction.editReply(msg);
 
       const db = await open({
         filename: "/var/data/users.sqlite", // persistent path
