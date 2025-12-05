@@ -38,7 +38,10 @@ export default {
       });
 
       // Detect goose score
-      const gooseScore = text.match(/(\d+\.\d+)\s*(Goose|Goo0se)/i)?.[1] ?? "❌";
+      const gooseScore = parseFloat(
+        text.match(/(\d+(?:\.\d+)?)[^\dA-Za-z]{0,5}([GC0]oose)/i)?.[1] ?? 0
+      );
+
 
       // Build message
       const msg = `📝 **OCR text:**\n\`\`\`${text}\`\`\`\n\n🔎 Detected:\n• ${detected.join("\n• ")}\n• Goose Score: **${gooseScore}**`;
