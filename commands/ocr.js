@@ -89,11 +89,12 @@ export default {
 
       // 2️⃣ If not found: detect 5-digit raw score (XXXXX → X.XXXX)
       if (!gooseScore) {
-        const fiveDigit = text.match(/\b(\d{5})\b/);
-        if (fiveDigit) {
-          gooseScore = parseInt(fiveDigit[1]) / 10000;
+        const fiveDigits = text.match(/\b\d{5}\b/g);
+        if (fiveDigits && fiveDigits.length) {
+          gooseScore = parseInt(fiveDigits[fiveDigits.length - 1]) / 10000;
         }
       }
+
 
       // 3️⃣ If still not found → fallback to 0
       if (!gooseScore) gooseScore = 0;
@@ -202,21 +203,25 @@ async function saveSkills(discordId, ingameName, playerId, role, detectedWeapons
   }
 
   const existing = await db.get(
-    "SELECT * FROM skills WHERE discord_id = ? AND weapon1 = ? AND weapon2 = ? AND playerId = ?",
+    "SELECT * FROM skills WHERE discord_id = ? AND ingame_name = ? AND weapon1 = ? AND weapon2 = ?",
     discordId,
+    ingameName,
     weapon1,
     weapon2
   );
 
+
   if (existing) {
     if (existing.weapon1 === weapon1 && existing.weapon2 === weapon2) {
       await db.run(
-        "UPDATE skills SET score = ?, playerId = ?, role = ?, ingame_name = ?, created_at = CURRENT_TIMESTAMP WHERE discord_id = ? AND weapon1 = ? AND weapon2 = ?",
+        "UPDATE skills SET score = ?, playerId = ?, role = ?, created_at = CURRENT_TIMESTAMP WHERE discord_id = ? AND ingame_name = ? AND weapon1 = ? AND weapon2 = ?",
         score,
         playerId,
         role,
+        discordId,
         ingameName,
-        discordId
+        weapon1,
+        weapon2
       );
     }
   } else {
