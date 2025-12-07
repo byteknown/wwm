@@ -9,7 +9,7 @@ const workerPromise = Tesseract.createWorker();
 
 export default {
   data: new SlashCommandBuilder()
-    .setName("Goose")
+    .setName("goose")
     .setDescription("Extract martial skills and goose score from WWM screenshot")
     .addAttachmentOption(opt =>
       opt.setName("image")
