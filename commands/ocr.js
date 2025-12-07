@@ -194,7 +194,6 @@ async function saveSkills(discordId, ingameName, playerId, role, detectedWeapons
   );
 
   if (existing) {
-    if (existing.score !== score) {
       await db.run(
         "UPDATE skills SET score = ?, playerId = ?, role = ?, ingame_name = ?, created_at = CURRENT_TIMESTAMP WHERE discord_id = ? AND weapon1 = ? AND weapon2 = ?",
         score,
@@ -205,7 +204,6 @@ async function saveSkills(discordId, ingameName, playerId, role, detectedWeapons
         weapon1,
         weapon2
       );
-    }
   } else {
     await db.run(
       "INSERT INTO skills (discord_id, ingame_name, playerId, role, weapon1, weapon2, score) VALUES (?, ?, ?, ?, ?, ?, ?)",
