@@ -118,7 +118,7 @@ export default {
       const msg =
 `📝 **Detected Info**
 • **Role:** ${role}
-• ${detectedList ? detectedList + "\n" : ""}
+ ${detected ? detected + "\n" : ""}
 • **Score (Goose/Ganso):** ⭐ **${gooseScore}**`;
 
       await interaction.editReply(msg);
