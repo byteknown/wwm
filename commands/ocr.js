@@ -172,7 +172,7 @@ async function saveSkills(discordId, ingameName, playerId, role, detectedWeapons
       weapon2 TEXT,
       score REAL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY(discord_id, playerId, weapon1, weapon2)
+      PRIMARY KEY(discord_id, weapon1, weapon2)
     );
   `);
 
