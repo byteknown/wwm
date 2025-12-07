@@ -5,16 +5,16 @@ import { open } from "sqlite";
 
 const sqlite = sqlite3.verbose();
 
-const workerPromise = Tesseract.createWorker(); // Node resolves automatically
+const workerPromise = Tesseract.createWorker(); 
 
 export default {
   data: new SlashCommandBuilder()
     .setName("ocr")
-    .setDescription("Extract martial skills and goose score from WWM screenshot")
+    .setDescription("Extract martial skills and goose/ganso score from WWM screenshot")
     .addAttachmentOption(opt =>
       opt.setName("image")
-         .setDescription("Upload your screenshot")
-         .setRequired(true)
+        .setDescription("Upload your screenshot")
+        .setRequired(true)
     ),
 
   async execute(interaction) {
@@ -23,20 +23,37 @@ export default {
       return interaction.reply({ content: "❌ Upload a valid image file.", ephemeral: true });
     }
 
-    // Use deferReply to avoid interaction timeout
     await interaction.deferReply({ ephemeral: true });
 
     try {
       const worker = await workerPromise;
-
       const { data } = await worker.recognize(image.url, "eng");
       const text = data.text.replace(/\s+/g, " ").trim();
 
-      const martialArts = ["Nameless Sword", "Strategic Sword", "Ninefold Umbrella", "Panacea Fan", "Inkwell Fan", "Stormbreaker Spear",
-                            "Nameless Spear", "Heavenquaker Spear", "Soulshade Umbrella", "Infernal Twinblades", "Thundercry Blade",
-                            "Mortal Rope Dart"];
+      // -------------------------------------
+      // Detect ID: 10 digits
+      // -------------------------------------
+      let playerId = null;
+      const idMatch = text.match(/ID[:\s]*([0-9]{10})/i);
+      if (idMatch) {
+        playerId = idMatch[1];
+      }
 
-      // Detect each martial art
+      // --------------------------
+      // Martial Arts list
+      // --------------------------
+      const martialArts = [
+        "Nameless Sword", "Strategic Sword", "Ninefold Umbrella", "Panacea Fan",
+        "Inkwell Fan", "Stormbreaker Spear", "Nameless Spear", "Heavenquaker Spear",
+        "Soulshade Umbrella", "Infernal Twinblades", "Thundercry Blade", "Mortal Rope Dart",
+
+        // Spanish
+        "Espada Estratégica", "Espada Sin Nombre", "Lanza Sin Nombre",
+        "Espadas Gemelas Infernales", "Lanza del Temblor Celestial", "Abanico Panacea",
+        "Sombrilla Primaveral", "Lanza Rompetormentas", "Espada del Trueno",
+        "Abanico del Tintero", "Sombrilla de las Almas", "Dardo Mortal"
+      ];
+
       const detected = martialArts.map(name => {
         const found = text.match(new RegExp(name, "i"))?.[0] ?? null;
         return {
@@ -46,29 +63,50 @@ export default {
         };
       });
 
+      // -----------------------------------------
+      // SCORE DETECTION (3 METHOD PRIORITY ORDER)
+      // -----------------------------------------
 
-      // Detect goose score
-      // Matches a number immediately before "Goose", "Goo0se", or OCR variants
-      const match = text.match(/(\d+(?:\.\d+)?)(?:[^\dA-Za-z]{0,5})(Goose|Goo0se|Coose|0oose|Coo0se)/i);
+      let gooseScore = 0;
 
-      const gooseScore = match ? parseFloat(match[1]) : 0;
+      // 1️⃣ Normal Goose/Ganso detection
+      const scorePattern = /(\d+(?:\.\d+)?)[^\dA-Za-z]{0,5}(Goose|Goo0se|Coose|0oose|Coo0se|Ganso|Gan5o)/i;
+      const scoreMatch = text.match(scorePattern);
 
-
-      // Default role
-      function hasWeapon(name, detected) {
-        return detected.some(d => d.name === name && d.found === true);
+      if (scoreMatch) {
+        gooseScore = parseFloat(scoreMatch[1]);
       }
 
+      // 2️⃣ If not found: detect 5-digit raw score (XXXXX → X.XXXX)
+      if (!gooseScore) {
+        const fiveDigit = text.match(/\b(\d{5})\b/);
+        if (fiveDigit) {
+          gooseScore = parseInt(fiveDigit[1]) / 10000;
+        }
+      }
+
+      // 3️⃣ If still not found → fallback to 0
+      if (!gooseScore) gooseScore = 0;
+
+      // -------------------------------------
+      // ROLE DETECTION
+      // -------------------------------------
+      const hasWeapon = (n) => detected.some(d => d.name === n && d.found);
 
       let role = "Melee DPS";
 
-      if (hasWeapon("Panacea Fan", detected) && hasWeapon("Soulshade Umbrella", detected)) {
+      if (
+        (hasWeapon("Panacea Fan") && hasWeapon("Soulshade Umbrella"))
+        || (hasWeapon("Abanico Panacea") && hasWeapon("Sombrilla de las Almas"))
+      ) {
         role = "Healer";
-      }
-      else if (hasWeapon("Stormbreaker Spear", detected) && hasWeapon("Thundercry Blade", detected)) {
+      } 
+      else if ((hasWeapon("Stormbreaker Spear") && hasWeapon("Thundercry Blade"))
+        || (hasWeapon("Lanza Rompetormentas") && hasWeapon("Espada del Trueno"))) {
         role = "Tank";
-      }
-      else if (hasWeapon("Ninefold Umbrella", detected) && hasWeapon("Inkwell Fan", detected)) {
+      } 
+      else if ((hasWeapon("Ninefold Umbrella") && hasWeapon("Inkwell Fan"))
+        || (hasWeapon("Sombrilla Primaveral") && hasWeapon("Abanico del Tintero"))) {
         role = "Ranged DPS";
       }
 
@@ -77,16 +115,19 @@ export default {
         .map(w => `• ${w.raw}`)
         .join("\n");
 
-      const msg = `📝 Detected:
-      • ${role}
-      ${detectedList}
-      • Goose Score: **${gooseScore}**`;
-
+      const msg =
+`📝 **Detected Info**
+• **Role:** ${role}
+• ${detectedList ? detectedList + "\n" : ""}
+• **Score (Goose/Ganso):** ⭐ **${gooseScore}**`;
 
       await interaction.editReply(msg);
 
+      // -------------------------------------
+      // Save skills
+      // -------------------------------------
       const db = await open({
-        filename: "/var/data/users.sqlite", // persistent path
+        filename: "/var/data/users.sqlite",
         driver: sqlite.Database,
       });
 
@@ -97,7 +138,7 @@ export default {
 
       const ingameName = row ? row.ingame_name : null;
 
-      await saveSkills(interaction.user.id, ingameName, role, detected, gooseScore);
+      await saveSkills(interaction.user.id, ingameName, playerId, role, detected, gooseScore);
 
     } catch (err) {
       console.error("OCR failed:", err);
@@ -106,24 +147,26 @@ export default {
   }
 };
 
-// terminate worker on exit
+// Worker cleanup
 process.on("exit", async () => {
   const worker = await workerPromise;
   await worker.terminate();
-  
 });
 
-async function saveSkills(discordId, ingameName, role, detectedWeapons, score) {
+// -------------------------------------
+// saveSkills FUNCTION (unchanged)
+// -------------------------------------
+async function saveSkills(discordId, ingameName, playerId, role, detectedWeapons, score) {
   const db = await open({
     filename: "/var/data/users.sqlite",
     driver: sqlite.Database,
   });
 
-  // Ensure table exists
   await db.exec(`
     CREATE TABLE IF NOT EXISTS skills (
       discord_id TEXT NOT NULL,
       ingame_name TEXT NOT NULL,
+      playerId TEXT,
       role TEXT NOT NULL,
       weapon1 TEXT,
       weapon2 TEXT,
@@ -133,7 +176,6 @@ async function saveSkills(discordId, ingameName, role, detectedWeapons, score) {
     );
   `);
 
-  // Only the first two detected weapons
   const weaponNames = detectedWeapons.filter(w => w.found).map(w => w.name);
   const weapon1 = weaponNames[0] ?? null;
   const weapon2 = weaponNames[1] ?? null;
@@ -144,17 +186,16 @@ async function saveSkills(discordId, ingameName, role, detectedWeapons, score) {
     return;
   }
 
-  // Check if this combination already exists
   const existing = await db.get(
-    "SELECT * FROM skills WHERE discord_id = ? AND weapon1 = ? AND weapon2 = ?",
+    "SELECT * FROM skills WHERE discord_id = ? AND weapon1 = ? AND weapon2 = ? AND playerId = ?",
     discordId,
     weapon1,
-    weapon2
+    weapon2,
+    playerId
   );
 
   if (existing) {
     if (existing.score !== score) {
-      // Update score only if different
       await db.run(
         "UPDATE skills SET score = ?, role = ?, ingame_name = ?, created_at = CURRENT_TIMESTAMP WHERE discord_id = ? AND weapon1 = ? AND weapon2 = ?",
         score,
@@ -164,22 +205,18 @@ async function saveSkills(discordId, ingameName, role, detectedWeapons, score) {
         weapon1,
         weapon2
       );
-      console.log(`Updated score for ${ingameName} (${discordId}) - Weapons: ${weapon1}, ${weapon2}, Score: ${score}`);
-    } else {
-      console.log(`Entry already exists for ${ingameName} (${discordId}) - Weapons: ${weapon1}, ${weapon2}, Score unchanged.`);
     }
   } else {
-    // Insert new combination
     await db.run(
-      "INSERT INTO skills (discord_id, ingame_name, role, weapon1, weapon2, score) VALUES (?, ?, ?, ?, ?, ?)",
+      "INSERT INTO skills (discord_id, ingame_name, playerId, role, weapon1, weapon2, score) VALUES (?, ?, ?, ?, ?, ?, ?)",
       discordId,
       ingameName,
+      playerId,
       role,
       weapon1,
       weapon2,
       score
     );
-    console.log(`Added new entry for ${ingameName} (${discordId}) - Role: ${role}, Weapons: ${weapon1}, ${weapon2}, Score: ${score}`);
   }
 
   await db.close();
