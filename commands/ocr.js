@@ -162,7 +162,12 @@ export default {
       // -------------------------------------
       // ROLE DETECTION
       // -------------------------------------
-      const hasWeapon = (n) => detected.some(d => d.name === n && d.found);
+      const hasWeapon = (names) => {
+        if (Array.isArray(names)) {
+          return names.some(n => detected.some(d => d.name === n && d.found));
+        }
+        return detected.some(d => d.name === names && d.found);
+      };
 
       let role = "Melee DPS";
 
