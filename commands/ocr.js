@@ -4,6 +4,9 @@ import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 import Fuse from "fuse.js";
 import { AttachmentBuilder } from "discord.js";
+import sharp from "sharp";
+import { martialArts } from "../data/weapons.js";
+import { translationMap } from "../data/translationMap.js";
 
 const sqlite = sqlite3.verbose();
 
@@ -30,11 +33,19 @@ export default {
 
     const response = await fetch(image.url);
     const buffer = await response.arrayBuffer();
-    const attachment = new AttachmentBuilder(Buffer.from(buffer), { name: 'screenshot.png' });
+    let imageBuffer = Buffer.from(buffer);
+    imageBuffer = await sharp(imageBuffer)
+      .grayscale()
+      .resize({ width: 800, withoutEnlargement: true })
+      .normalize()
+      .toBuffer();
+
+
+    const attachment = new AttachmentBuilder(imageBuffer, { name: 'screenshot.png' });
 
     try {
       const worker = await workerPromise;
-      const { data } = await worker.recognize(image.url, "eng");
+      const { data } = await worker.recognize(imageBuffer, "eng");
       const text = data.text.replace(/\s+/g, " ").trim();
 
       // -------------------------------------
@@ -45,55 +56,6 @@ export default {
       if (idMatch) {
         playerId = idMatch[1];
       }
-
-      // --------------------------
-      // Martial Arts list
-      // --------------------------
-      const martialArts = [
-        // English
-        "Nameless Sword", "Strategic Sword", "Ninefold Umbrella", "Panacea Fan",
-        "Inkwell Fan", "Stormbreaker Spear", "Nameless Spear", "Heavenquaker Spear",
-        "Soulshade Umbrella", "Infernal Twinblades", "Thundercry Blade", "Mortal Rope Dart",
-
-        // Spanish
-        "Espada Estratégica", "Espada Sin Nombre", "Lanza Sin Nombre",
-        "Espadas Gemelas Infernales", "Lanza del Temblor Celestial", "Abanico Panacea",
-        "Sombrilla Primaveral", "Lanza Rompetormentas", "Espada del Trueno",
-        "Abanico del Tintero", "Sombrilla de las Almas", "Dardo Mortal",
-
-        // French
-        "Lames Jumelles Infernales",       // Infernal Twinblades
-        "Épée Stratégique",
-        "Epée Stratégique",                // Strategic Sword
-        "Éventail Panacée",                // Panacea Fan
-        "Épée Sans Nom",
-        "Epée Sans Nom",                   // Nameless Sword
-        "Parapluie des Âmes",              // Soulshade Umbrella
-        "Parapluie Printanier",            // Ninefold Umbrella
-        "Lame du Tonnerre",                // Thundercry Blade
-        "Éventail Encrier",                // Inkwell Fan
-        "Lance Sans Nom",                  // Nameless Spear
-        "Lance Fende-Tempête",             // Stormbreaker Spear
-        "Lance Ébranle-Ciel",              // Heavenquaker Spear
-        "Dard Mortel",                     // Mortal Rope Dart
-
-        // German
-        "Höllische Zwillingsklingen",      // Infernal Twinblades
-        "Strategisches Schwert",           // Strategic Sword
-        "Allheilfächer",
-        "Allheilficher",                   // Panacea Fan
-        "Namenloses Schwert",              // Nameless Sword
-        "Seelenschattenschirm",            // Soulshade Umbrella
-        "Frühlingsschirm",
-        "Frithlingsschirm",                 // Ninefold Umbrella
-        "Donnerruf-Klinge",                // Thundercry Blade
-        "Tintenfassfächer",                // Inkwell Fan
-        "Namenlose Speer",                 // Nameless Speer (OCR quirk)
-        "Sturmbrecher-Speer",              // Stormbreaker Spear
-        "Himmelserschütterer Speer",       // Heavenquaker Spear
-        "Todesseilpfeil"                   // Mortal Rope Dart
-      ];
-
 
       function normalizeText(str) {
         return str
@@ -117,13 +79,29 @@ export default {
       }
 
       const detected = martialArts.map(name => {
-        const found = isWeaponDetected(name, text);
+      const found = isWeaponDetected(name, text);
         return {
-          name,
+          original: name,
           found,
-          raw: `${name}: **${found ? name : "❌"}**`
+          name: translationMap[name] ?? name, // map to canonical English
+          raw: `${name}: **${found ? (translationMap[name] ?? name) : "❌"}**`
         };
       });
+
+      const seen = new Set();
+
+      const detectedList = detected
+        .filter(w => w.found)
+        .filter(w => {
+          const normalized = w.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          if (seen.has(normalized)) return false;
+          seen.add(normalized);
+          return true;
+        })
+        .map(w => `        • ${w.raw}`)
+        .join("\n");
+
+
 
       // -----------------------------------------
       // SCORE DETECTION (3 METHOD PRIORITY ORDER)
@@ -170,41 +148,43 @@ export default {
         return detected.some(d => d.name === names && d.found);
       };
 
-      let role = "Melee DPS";
+      let role = "DPS";
 
       if (
-        hasWeapon([
-          "Panacea Fan", "Abanico Panacea", "Éventail Panacée", "Allheilfächer", "Allheilficher"
-        ]) &&
-        hasWeapon([
-          "Soulshade Umbrella", "Sombrilla de las Almas", "Parapluie des Âmes", "Seelenschattenschirm"
-        ])
+        hasWeapon(["Panacea Fan"]) &&
+        hasWeapon(["Soulshade Umbrella"])
       ) {
-        role = "Healer";
-      } 
-      // Tank
-      else if (
-        hasWeapon([
-          "Stormbreaker Spear", "Lanza Rompetormentas", "Lance Fende-Tempête", "Sturmbrecher-Speer"
-        ]) &&
-        hasWeapon([
-          "Thundercry Blade", "Espada del Trueno", "Lame du Tonnerre", "Donnerruf-Klinge"
-        ])
+        role = "Human Health Potion (Pure Healer)";
+      } else if (
+        hasWeapon(["Stormbreaker Spear"]) &&
+        hasWeapon(["Thundercry Blade"])
       ) {
-        role = "Tank";
-      } 
-      // Ranged DPS
-      else if (
-        hasWeapon([
-          "Ninefold Umbrella", "Sombrilla Primaveral", "Parapluie Printanier", "Frühlingsschirm", "Frithlingsschirm"
-        ]) &&
-        hasWeapon([
-          "Inkwell Fan", "Abanico del Tintero", "Éventail Encrier", "Tintenfassfächer"
-        ])
+        role = "Aggro Sponge (Pure Tank)";
+      } else if (
+        hasWeapon(["Ninefold Umbrella"]) &&
+        hasWeapon(["Inkwell Fan"])
       ) {
-        role = "Ranged DPS";
+        role = "Snipes-From-Another-Map (Ranged DPS)";
+      } else if (
+        (hasWeapon(["Panacea Fan"]) || hasWeapon(["Soulshade Umbrella"])) &&
+        (hasWeapon(["Stormbreaker Spear"] || hasWeapon(["Thundercry Blade"])))
+      ) {
+        role = "Sir Not Dying Today (Tank + Healer)";
+      } else if (
+        hasWeapon(["Panacea Fan"]) ||
+        hasWeapon(["Soulshade Umbrella"])
+      ) {
+        role = "Doctor Damage (Healer + DPS)";
+      } else if (
+        hasWeapon(["Stormbreaker Spear"]) ||
+        hasWeapon(["Thundercry Blade"])
+      ) {
+        role = "Walking Raid Boss (Tank + DPS)";
+      } else{
+        role = "DPS";
       }
 
+      /*
       const seen = new Set();
 
       const detectedList = detected
@@ -217,7 +197,7 @@ export default {
         })
         .map(w => `        • ${w.raw}`) // add spaces to match template indentation
         .join("\n");
-
+    */
       const msg =
         `📝 **Detected Info**
         • **Role:** ${role}
@@ -261,6 +241,10 @@ export default {
         📄 **OCR Text Detected:**
         \`\`\`
         ${text}
+        \`\`\`
+        📄 **OCR Text normalized Detected:**
+        \`\`\`
+        ${normalizeText(text)}
         \`\`\``,
           files: [attachment]
         });
@@ -307,61 +291,6 @@ async function saveSkills(discordId, ingameName, playerId, role, detectedWeapons
       PRIMARY KEY(discord_id, ingame_name, weapon1, weapon2)
     );
   `);
-
-  const translationMap = {
-  // --- Spanish → English ---
-  "Espada Estratégica": "Strategic Sword",
-  "Espada Sin Nombre": "Nameless Sword",
-  "Lanza Sin Nombre": "Nameless Spear",
-  "Espadas Gemelas Infernales": "Infernal Twinblades",
-  "Lanza del Temblor Celestial": "Heavenquaker Spear",
-  "Abanico Panacea": "Panacea Fan",
-  "Sombrilla Primaveral": "Ninefold Umbrella",
-  "Lanza Rompetormentas": "Stormbreaker Spear",
-  "Espada del Trueno": "Thundercry Blade",
-  "Abanico del Tintero": "Inkwell Fan",
-  "Sombrilla de las Almas": "Soulshade Umbrella",
-  "Dardo Mortal": "Mortal Rope Dart",
-
-  // --- French → English ---
-  "Oie": "Goose",  // OCR keyword
-  "Lames Jumelles Infernales": "Infernal Twinblades",
-  "Épée Stratégique": "Strategic Sword",
-  "Epée Stratégique": "Strategic Sword",     // OCR without accent
-  "Éventail Panacée": "Panacea Fan",
-  "Eventail Panacée": "Panacea Fan",
-  "Épée Sans Nom": "Nameless Sword",
-  "Epée Sans Nom": "Nameless Sword",
-  "Parapluie des Âmes": "Soulshade Umbrella",
-  "Parapluie des Ames": "Soulshade Umbrella", // no accent
-  "Parapluie Printanier": "Ninefold Umbrella",
-  "Lame du Tonnerre": "Thundercry Blade",
-  "Éventail Encrier": "Inkwell Fan",
-  "Eventail Encrier": "Inkwell Fan",
-  "Lance Sans Nom": "Nameless Spear",
-  "Lance Fende-Tempête": "Stormbreaker Spear",
-  "Lance Fende Tempête": "Stormbreaker Spear",
-  "Lance Ébranle-Ciel": "Heavenquaker Spear",
-  "Lance Ebranle-Ciel": "Heavenquaker Spear",
-  "Dard Mortel": "Mortal Rope Dart",
-
-  // --- German → English ---
-  "Gans": "Goose",
-  "Höllische Zwillingsklingen": "Infernal Twinblades",
-  "Strategisches Schwert": "Strategic Sword",
-  "Allheilfächer": "Panacea Fan",
-  "Allheilficher": "Panacea Fan",
-  "Namenloses Schwert": "Nameless Sword",
-  "Seelenschattenschirm": "Soulshade Umbrella",
-  "Frühlingsschirm": "Ninefold Umbrella",
-  "Frithlingsschirm": "Ninefold Umbrella",
-  "Donnerruf-Klinge": "Thundercry Blade",
-  "Tintenfassfächer": "Inkwell Fan",
-  "Namenlose Speer": "Nameless Spear", // OCR variant
-  "Sturmbrecher-Speer": "Stormbreaker Spear",
-  "Himmelserschütterer Speer": "Heavenquaker Speer",
-  "Todesseilpfeil": "Mortal Rope Dart"
-};
 
 
 
