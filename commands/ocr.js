@@ -89,30 +89,22 @@ export default {
 
     const [cleaned, cleaned2, cleaned3, cleaned4] = await Promise.all([
       sharp(scoreBuf)
-        .resize(600, null)
         .grayscale()
-        .normalize()
         .threshold(140)
         .toBuffer(),
 
       sharp(wepBuf)
-        .resize(600, null)
         .grayscale()
-        .normalize()
         .threshold(140)
         .toBuffer(),
 
       sharp(wep2Buf)
-      .resize(600, null)
       .grayscale()
-      .normalize()
       .threshold(140)
       .toBuffer(),
 
       sharp(idBuf)
-      .resize(600, null)
       .grayscale()
-      .normalize()
       .threshold(140)
       .toBuffer()
     ]);
@@ -120,17 +112,21 @@ export default {
     const worker = await workerPromise;
 
     // OCR for score
-    const { data: scoreData } = await worker.recognize(cleaned, "eng");
+    const [scoreData, weaponData1, weaponData2, idData] = await Promise.all([
+      worker.recognize(cleaned, "eng"),
+      worker.recognize(cleaned2, "eng"),
+      worker.recognize(cleaned3, "eng"),
+      worker.recognize(cleaned4, "eng"),
+    ]);
+
+
     const scoreText = scoreData.text.replace(/\s+/g, " ").trim();
 
     // OCR for weapon
-    const { data: weaponData } = await worker.recognize(cleaned2, "eng");
-    const weaponText1 = weaponData.text.replace(/\s+/g, " ").trim();
+    const weaponText1 = weaponData1.text.replace(/\s+/g, " ").trim();
 
-    const { data: weaponData2 } = await worker.recognize(cleaned3, "eng");
     const weaponText2 = weaponData2.text.replace(/\s+/g, " ").trim();
 
-    const { data: idData } = await worker.recognize(cleaned4, "eng");
     const idText = idData.text.replace(/\s+/g, " ").trim();
 
     const idMatch = idText.match(/ID[:\s]*([0-9]{10})/i);
@@ -184,7 +180,8 @@ export default {
 
 
 
-      let scoreTextCleaned = scoreTextRaw
+      let scoreTextCleaned = scoreText;
+      scoreTextCleaned = scoreTextCleaned
         .replace(/Goo0se/gi, "Goose")
         .replace(/Coose/gi, "Goose")
         .replace(/0oose/gi, "Goose")
@@ -313,12 +310,6 @@ export default {
     await saveSkills(interaction.user.id, ingameName, playerId, role, detected, gooseScore);
   }
 };
-
-// Worker cleanup
-process.on("exit", async () => {
-  const worker = await workerPromise;
-  await worker.terminate();
-});
 
 // -------------------------------------
 // saveSkills FUNCTION (unchanged)
