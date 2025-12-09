@@ -3,6 +3,7 @@ import Tesseract from "tesseract.js";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 import Fuse from "fuse.js";
+import { AttachmentBuilder } from "discord.js";
 
 const sqlite = sqlite3.verbose();
 
@@ -20,11 +21,16 @@ export default {
 
   async execute(interaction) {
     const image = interaction.options.getAttachment("image");
+
     if (!image?.contentType?.startsWith("image/")) {
       return interaction.reply({ content: "❌ Upload a valid image file.", ephemeral: true });
     }
 
     await interaction.deferReply({ ephemeral: true });
+
+    const response = await fetch(image.url);
+    const buffer = await response.arrayBuffer();
+    const attachment = new AttachmentBuilder(Buffer.from(buffer), { name: 'screenshot.png' });
 
     try {
       const worker = await workerPromise;
@@ -56,7 +62,6 @@ export default {
         "Abanico del Tintero", "Sombrilla de las Almas", "Dardo Mortal",
 
         // French
-        "Oie", // goose (OCR keyword)
         "Lames Jumelles Infernales",       // Infernal Twinblades
         "Épée Stratégique",                // Strategic Sword
         "Éventail Panacée",                // Panacea Fan
@@ -71,7 +76,6 @@ export default {
         "Dard Mortel",                     // Mortal Rope Dart
 
         // German
-        "Gans", // goose (OCR keyword)
         "Höllische Zwillingsklingen",      // Infernal Twinblades
         "Strategisches Schwert",           // Strategic Sword
         "Allheilfächer",                   // Panacea Fan
@@ -115,7 +119,7 @@ export default {
       let gooseScore = 0;
 
       // 1️⃣ Normal Goose/Ganso detection
-      const scorePattern = /(\d+(?:\.\d+)?)[^\dA-Za-z]{0,5}(Goose|Goo0se|Coose|0oose|Coo0se|Ganso|Gan5o)/i;
+      const scorePattern = /(\d+(?:\.\d+)?)[^\dA-Za-z]{0,5}(Goose|Goo0se|Coose|0oose|Coo0se|Ganso|Gan5o|Gans|Oie)/i;
       const scoreMatch = text.match(scorePattern);
 
       if (scoreMatch) {
@@ -197,10 +201,10 @@ export default {
 
         await logChannel.send({
           content: `📸 **New Goose Upload**  
-      **In-Game:** ${ingameName ?? "Unknown"}  
-      **Role:** ${role}  
-      **Score:** ⭐ ${gooseScore}`,
-          files: [ image.url ]
+        **In-Game:** ${ingameName ?? "Unknown"}  
+        **Role:** ${role}  
+        **Score:** ⭐ ${gooseScore}`,
+          files: [attachment]
         });
 
       } catch (err) {
