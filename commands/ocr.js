@@ -214,12 +214,7 @@ export default {
         `📝 **Detected Info**
         • **Role:** ${role}
         ${detectedList ? detectedList + "\n" : ""}
-        • **Score (Goose):** ⭐ **${gooseScore}**
-
-        📄 **OCR Text Detected:**
-        \`\`\`
-        ${text}
-        \`\`\``;
+        • **Score (Goose):** ⭐ **${gooseScore}**`;
 
 
 
@@ -254,7 +249,11 @@ export default {
           content: `📸 **New Goose Upload**  
         **In-Game:** ${ingameName ?? "Unknown"}  
         **Role:** ${role}  
-        **Score:** ⭐ ${gooseScore}`,
+        **Score:** ⭐ ${gooseScore}
+        📄 **OCR Text Detected:**
+        \`\`\`
+        ${text}
+        \`\`\``,
           files: [attachment]
         });
 
