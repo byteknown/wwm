@@ -80,10 +80,12 @@ export default {
         // German
         "Höllische Zwillingsklingen",      // Infernal Twinblades
         "Strategisches Schwert",           // Strategic Sword
-        "Allheilfächer",                   // Panacea Fan
+        "Allheilfächer",
+        "Allheilficher",                   // Panacea Fan
         "Namenloses Schwert",              // Nameless Sword
         "Seelenschattenschirm",            // Soulshade Umbrella
-        "Frühlingsschirm",                 // Ninefold Umbrella
+        "Frühlingsschirm",
+        "Frithlingsschirm",                 // Ninefold Umbrella
         "Donnerruf-Klinge",                // Thundercry Blade
         "Tintenfassfächer",                // Inkwell Fan
         "Namenlose Speer",                 // Nameless Speer (OCR quirk)
@@ -166,10 +168,10 @@ export default {
 
       if (
         hasWeapon([
-          "Panacea Fan", "Abanico Panacea", "Éventail Panacée", "Allheilfächer"
+          "Panacea Fan", "Abanico Panacea", "Éventail Panacée", "Allheilfächer", "Allheilficher"
         ]) &&
         hasWeapon([
-          "Ninefold Umbrella", "Sombrilla Primaveral", "Parapluie printanier", "Frühlingsschirm"
+          "Ninefold Umbrella", "Sombrilla Primaveral", "Parapluie printanier", "Frühlingsschirm", "Frithlingsschirm"
         ])
       ) {
         role = "Healer";
