@@ -35,12 +35,6 @@ const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 
 const guilds = [process.env.GUILD_ID, "1445401393643917366"];
 
-const ALLOWED_USERS = [
-  '1416909595955302431', // User 1 ID
-  '320573579961958402', // User 2 ID
-  '1439615858480775198'  // User 3 ID
-];
-
 
 (async () => {
   try {
@@ -62,13 +56,6 @@ const ALLOWED_USERS = [
 
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
-
-  if (!ALLOWED_USERS.includes(interaction.user.id)) {
-      return interaction.reply({
-        content: '❌ You are not allowed to use /rank.',
-        ephemeral: true
-      });
-    }
 
   // -------------------------------
   // Handle interactions
