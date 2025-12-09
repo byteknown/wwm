@@ -12,6 +12,20 @@ const sqlite = sqlite3.verbose();
 
 const workerPromise = Tesseract.createWorker(); 
 
+async function cleanupWorker() {
+  try {
+    const worker = await workerPromise;
+    await worker.terminate();
+    console.log("Tesseract worker terminated.");
+  } catch (err) {
+    console.error("Failed to terminate Tesseract worker:", err);
+  }
+}
+
+process.on("SIGINT", cleanupWorker);   // Ctrl+C
+process.on("SIGTERM", cleanupWorker);  // System stop
+process.on("uncaughtException", cleanupWorker); // Optional
+
 export default {
   data: new SlashCommandBuilder()
     .setName("goose")
