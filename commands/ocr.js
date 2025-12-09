@@ -103,22 +103,19 @@ export default {
           .toLowerCase();                  // lowercase for easy matching
       }
 
-      function isWeaponDetectedFuzzy(weaponName, ocrText) {
+      function isWeaponDetected(weaponName, ocrText) {
         const cleanOCR = normalizeText(ocrText);
         const cleanWeapon = normalizeText(weaponName);
 
-        const fuse = new Fuse([cleanWeapon], {
-          includeScore: true,
-          threshold: 0.4, // lower = stricter, higher = more tolerant
-          ignoreLocation: true,
-        });
+        const words = cleanWeapon.split(" ");
+        const pattern = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".{0,5}");
+        const regex = new RegExp(pattern, "i");
 
-        const result = fuse.search(cleanOCR);
-        return result.length > 0 && result[0].score <= 0.4; // match if similarity is good enough
+        return regex.test(cleanOCR);
       }
 
       const detected = martialArts.map(name => {
-        const found = isWeaponDetectedFuzzy(name, text);
+        const found = isWeaponDetected(name, text);
         return {
           name,
           found,
@@ -129,12 +126,20 @@ export default {
       // -----------------------------------------
       // SCORE DETECTION (3 METHOD PRIORITY ORDER)
       // -----------------------------------------
+      const scoreText = text
+        .replace(/Goo0se/gi, "Goose")
+        .replace(/Coose/gi, "Goose")
+        .replace(/0oose/gi, "Goose")
+        .replace(/Coo0se/gi, "Goose")
+        .replace(/Gan5o/gi, "Goose")
+        .replace(/Gans/gi, "Goose")
+        .replace(/Oie/gi, "Goose");
 
       const normalizedText = normalizeText(text);
 
       // Match variants of "Goose" or "Ganso" with some OCR errors
-      const scorePattern = /(\d+(?:\.\d+)?)[^\dA-Za-z]{0,5}(goose|goo0se|coose|0oose|coo0se|ganso|gan5o|gans|oie)/i;
-      const scoreMatch = normalizedText.match(scorePattern);
+      const scorePattern = /(\d+(?:\.\d+)?)\s*Goose/i;
+      const scoreMatch = scoreText.match(scorePattern);
 
       let gooseScore = 0;
       if (scoreMatch) {
@@ -153,15 +158,15 @@ export default {
       // -------------------------------------
       // ROLE DETECTION
       // -------------------------------------
-      const hasAnyWeapon = (variants) => detected.some(d => variants.includes(d.name) && d.found);
+      const hasWeapon = (n) => detected.some(d => d.name === n && d.found);
 
       let role = "Melee DPS";
 
       if (
-        hasAnyWeapon([
+        hasWeapon([
           "Panacea Fan", "Abanico Panacea", "Éventail Panacée", "Allheilfächer"
         ]) &&
-        hasAnyWeapon([
+        hasWeapon([
           "Soulshade Umbrella", "Sombrilla de las Almas", "Parapluie des Âmes", "Seelenschattenschirm"
         ])
       ) {
@@ -169,10 +174,10 @@ export default {
       } 
       // Tank
       else if (
-        hasAnyWeapon([
+        hasWeapon([
           "Stormbreaker Spear", "Lanza Rompetormentas", "Lance Fende-Tempête", "Sturmbrecher-Speer"
         ]) &&
-        hasAnyWeapon([
+        hasWeapon([
           "Thundercry Blade", "Espada del Trueno", "Lame du Tonnerre", "Donnerruf-Klinge"
         ])
       ) {
@@ -180,10 +185,10 @@ export default {
       } 
       // Ranged DPS
       else if (
-        hasAnyWeapon([
+        hasWeapon([
           "Ninefold Umbrella", "Sombrilla Primaveral", "Parapluie Printanier", "Frühlingsschirm"
         ]) &&
-        hasAnyWeapon([
+        hasWeapon([
           "Inkwell Fan", "Abanico del Tintero", "Éventail Encrier", "Tintenfassfächer"
         ])
       ) {
