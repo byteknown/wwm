@@ -135,7 +135,8 @@ export default {
         .replace(/Coo0se/gi, "Goose")
         .replace(/Gan5o/gi, "Goose")
         .replace(/Gans/gi, "Goose")
-        .replace(/Oie/gi, "Goose");
+        .replace(/Oie/gi, "Goose")
+        .replace(/Go0se/gi, "Goose");
 
       const normalizedText = normalizeText(text);
 
