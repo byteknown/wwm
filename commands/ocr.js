@@ -34,79 +34,143 @@ export default {
     const response = await fetch(image.url);
     const buffer = await response.arrayBuffer();
     let imageBuffer = Buffer.from(buffer);
-    imageBuffer = await sharp(imageBuffer)
+    const meta = await sharp(imageBuffer).metadata();
+    const W = meta.width;
+    const H = meta.height;
+    const scoreRegion = {
+      left: Math.floor(W * 0.70),
+      top: Math.floor(H * 0.08),
+      width: Math.floor(W * 0.22),
+      height: Math.floor(H * 0.12),
+    };
+
+    const weaponRegion1 = {
+      left: Math.floor(W * 0.08),
+      top: Math.floor(H * 0.24),
+      width: Math.floor(W * 0.33),
+      height: Math.floor(H * 0.08),
+    };
+
+    const weaponRegion2 = {
+      left: Math.floor(W * 0.08),
+      top: Math.floor(H * 0.33),
+      width: Math.floor(W * 0.33),
+      height: Math.floor(H * 0.08),
+    };
+
+    const idRegion = {
+      left: Math.floor(W * 0.03),
+      top: Math.floor(H * 0.87),
+      width: Math.floor(W * 0.40),
+      height: Math.floor(H * 0.10),
+    };
+
+    const [scoreBuf, wepBuf, wep2Buf, idBuf] = await Promise.all([
+      sharp(imageBuffer).extract(scoreRegion).toBuffer(),
+      sharp(imageBuffer).extract(weaponRegion1).toBuffer(),
+      sharp(imageBuffer).extract(weaponRegion2).toBuffer(),
+      sharp(imageBuffer).extract(idRegion).toBuffer()
+    ]);
+
+
+    const [cleaned, cleaned2, cleaned3, cleaned4] = await Promise.all([
+      sharp(scoreBuf)
+        .resize(600, null)
+        .grayscale()
+        .normalize()
+        .threshold(140)
+        .toBuffer(),
+
+      sharp(wepBuf)
+        .resize(600, null)
+        .grayscale()
+        .normalize()
+        .threshold(140)
+        .toBuffer(),
+
+      sharp(wep2Buf)
+      .resize(600, null)
       .grayscale()
-      .resize({ width: 800, withoutEnlargement: true })
       .normalize()
-      .toBuffer();
+      .threshold(140)
+      .toBuffer(),
+
+      sharp(idBuf)
+      .resize(600, null)
+      .grayscale()
+      .normalize()
+      .threshold(140)
+      .toBuffer()
+    ]);
+
+    const worker = await workerPromise;
+
+    // OCR for score
+    const { data: scoreData } = await worker.recognize(cleaned, "eng");
+    const scoreText = scoreData.text.replace(/\s+/g, " ").trim();
+
+    // OCR for weapon
+    const { data: weaponData } = await worker.recognize(cleaned2, "eng");
+    const weaponText1 = weaponData.text.replace(/\s+/g, " ").trim();
+
+    const { data: weaponData2 } = await worker.recognize(cleaned3, "eng");
+    const weaponText2 = weaponData2.text.replace(/\s+/g, " ").trim();
+
+    const { data: idData } = await worker.recognize(cleaned4, "eng");
+    const idText = idData.text.replace(/\s+/g, " ").trim();
+
+    const idMatch = idText.match(/ID[:\s]*([0-9]{10})/i);
+    const playerId = idMatch ? idMatch[1] : null;
 
 
-    const attachment = new AttachmentBuilder(imageBuffer, { name: 'screenshot.png' });
+    function normalizeText(str) {
+      return str
+        .normalize("NFD")                // normalize accents
+        .replace(/[\u0300-\u036f]/g, "") // remove diacritics
+        .replace(/[^\w\s]/g, " ")        // remove symbols like *, /, \, |
+        .replace(/\s+/g, " ")            // normalize multiple spaces
+        .trim()
+        .toLowerCase();                  // lowercase for easy matching
+    }
 
-    try {
-      const worker = await workerPromise;
-      const { data } = await worker.recognize(imageBuffer, "eng");
-      const text = data.text.replace(/\s+/g, " ").trim();
+    function isWeaponDetected(weaponName, ocrText) {
+      const cleanOCR = normalizeText(ocrText);
+      const cleanWeapon = normalizeText(weaponName);
 
-      // -------------------------------------
-      // Detect ID: 10 digits
-      // -------------------------------------
-      let playerId = null;
-      const idMatch = text.match(/ID[:\s]*([0-9]{10})/i);
-      if (idMatch) {
-        playerId = idMatch[1];
-      }
+      const words = cleanWeapon.split(" ");
+      const pattern = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".{0,5}");
+      const regex = new RegExp(pattern, "i");
 
-      function normalizeText(str) {
-        return str
-          .normalize("NFD")                // normalize accents
-          .replace(/[\u0300-\u036f]/g, "") // remove diacritics
-          .replace(/[^\w\s]/g, " ")        // remove symbols like *, /, \, |
-          .replace(/\s+/g, " ")            // normalize multiple spaces
-          .trim()
-          .toLowerCase();                  // lowercase for easy matching
-      }
+      return regex.test(cleanOCR);
+    }
 
-      function isWeaponDetected(weaponName, ocrText) {
-        const cleanOCR = normalizeText(ocrText);
-        const cleanWeapon = normalizeText(weaponName);
+    const detected = martialArts.map(name => {
+    const found = isWeaponDetected(name, weaponText1) || isWeaponDetected(name, weaponText2);
+      return {
+        original: name,
+        found,
+        name: translationMap[name] ?? name,
+        raw: `${name}: **${found ? (translationMap[name] ?? name) : "❌"}**`
+      };
+    });
 
-        const words = cleanWeapon.split(" ");
-        const pattern = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".{0,5}");
-        const regex = new RegExp(pattern, "i");
 
-        return regex.test(cleanOCR);
-      }
+    const seen = new Set();
 
-      const detected = martialArts.map(name => {
-      const found = isWeaponDetected(name, text);
-        return {
-          original: name,
-          found,
-          name: translationMap[name] ?? name, // map to canonical English
-          raw: `${name}: **${found ? (translationMap[name] ?? name) : "❌"}**`
-        };
-      });
-
-      const seen = new Set();
-
-      const detectedList = detected
-        .filter(w => w.found)
-        .filter(w => {
-          const normalized = w.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-          if (seen.has(normalized)) return false;
-          seen.add(normalized);
-          return true;
-        })
-        .map(w => `        • ${w.raw}`)
-        .join("\n");
+    const detectedList = detected
+      .filter(w => w.found)
+      .filter(w => {
+        const normalized = w.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        if (seen.has(normalized)) return false;
+        seen.add(normalized);
+        return true;
+      })
+      .map(w => `        • ${w.raw}`)
+      .join("\n");
 
 
 
-      // -----------------------------------------
-      // SCORE DETECTION (3 METHOD PRIORITY ORDER)
-      // -----------------------------------------
-      const scoreText = text
+      let scoreTextCleaned = scoreTextRaw
         .replace(/Goo0se/gi, "Goose")
         .replace(/Coose/gi, "Goose")
         .replace(/0oose/gi, "Goose")
@@ -116,27 +180,13 @@ export default {
         .replace(/Oie/gi, "Goose")
         .replace(/Go0se/gi, "Goose");
 
-      const normalizedText = normalizeText(text);
-
-      // Match variants of "Goose" or "Ganso" with some OCR errors
       const scorePattern = /(\d+(?:\.\d+)?)\s*Goose/i;
-      const scoreMatch = scoreText.match(scorePattern);
+      const scoreMatch = scoreTextCleaned.match(scorePattern);
 
-      let gooseScore = 0;
-      if (scoreMatch) {
-        gooseScore = parseFloat(scoreMatch[1]);
-      } else {
-        // fallback: last 5-digit number → X.XXXX
-        const fiveDigits = normalizedText.match(/\b\d{5}\b/g);
-        if (fiveDigits?.length) {
-          gooseScore = parseInt(fiveDigits[fiveDigits.length - 1], 10) / 10000;
-        }
-      }
 
-      // final fallback
-      if (!gooseScore) gooseScore = 0;
-
+      let gooseScore = scoreMatch ? parseFloat(scoreMatch[1]) : 0;
       gooseScore = gooseScore.toFixed(3);
+
 
       // -------------------------------------
       // ROLE DETECTION
@@ -167,7 +217,7 @@ export default {
         role = "Snipes-From-Another-Map (Ranged DPS)";
       } else if (
         (hasWeapon(["Panacea Fan"]) || hasWeapon(["Soulshade Umbrella"])) &&
-        (hasWeapon(["Stormbreaker Spear"] || hasWeapon(["Thundercry Blade"])))
+        (hasWeapon(["Stormbreaker Spear"]) || hasWeapon(["Thundercry Blade"]))
       ) {
         role = "Sir Not Dying Today (Tank + Healer)";
       } else if (
@@ -184,20 +234,6 @@ export default {
         role = "DPS";
       }
 
-      /*
-      const seen = new Set();
-
-      const detectedList = detected
-        .filter(w => w.found)
-        .filter(w => {
-          const normalized = w.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-          if (seen.has(normalized)) return false;
-          seen.add(normalized);
-          return true;
-        })
-        .map(w => `        • ${w.raw}`) // add spaces to match template indentation
-        .join("\n");
-    */
       const msg =
         `📝 **Detected Info**
         • **Role:** ${role}
@@ -230,36 +266,37 @@ export default {
       // Replace with your channel ID
       const LOG_CHANNEL_ID = "1447698250323857622";
 
-      try {
-        const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID);
+    try {
+      const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID);
 
-        await logChannel.send({
-          content: `📸 **New Goose Upload**  
-        **In-Game:** ${ingameName ?? "Unknown"}  
-        **Role:** ${role}  
-        **Score:** ⭐ ${gooseScore}
-        📄 **OCR Text Detected:**
-        \`\`\`
-        ${text}
-        \`\`\`
-        📄 **OCR Text normalized Detected:**
-        \`\`\`
-        ${normalizeText(text)}
-        \`\`\``,
-          files: [attachment]
-        });
-
-      } catch (err) {
-        console.error("Failed to send screenshot:", err);
-      }
-
-
-      await saveSkills(interaction.user.id, ingameName, playerId, role, detected, gooseScore);
+      await logChannel.send({
+        content: `📸 **New Goose Upload**  
+      **In-Game:** ${ingameName ?? "Unknown"}  
+      **Role:** ${role}  
+      **Score:** ⭐ ${gooseScore}
+      📄 **OCR Text Detected (Score Region):**
+      \`\`\`
+      ${scoreText}
+      \`\`\`
+      📄 **OCR Text Detected (Weapons):**
+      \`\`\`
+      ${weaponText1}
+      ${weaponText2}
+      \`\`\`
+      📄 **OCR Text Detected (ID Region):**
+      \`\`\`
+      ${idText}
+      \`\`\``
+      ,
+        files: [interaction.options.getAttachment("image")]
+      });
 
     } catch (err) {
       console.error("OCR failed:", err);
       await interaction.editReply("❌ OCR failed.");
     }
+
+    await saveSkills(interaction.user.id, ingameName, playerId, role, detected, gooseScore);
   }
 };
 
