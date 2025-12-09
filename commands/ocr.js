@@ -24,7 +24,6 @@ async function cleanupWorker() {
 
 process.on("SIGINT", cleanupWorker);   // Ctrl+C
 process.on("SIGTERM", cleanupWorker);  // System stop
-process.on("uncaughtException", cleanupWorker); // Optional
 
 export default {
   data: new SlashCommandBuilder()
@@ -110,6 +109,10 @@ export default {
     ]);
 
     const worker = await workerPromise;
+    await worker.load();                // load Tesseract core
+    await worker.loadLanguage("eng");   // load English
+    await worker.initialize("eng");     // initialize with English
+
 
     // OCR for score
     const [scoreData, weaponData1, weaponData2, idData] = await Promise.all([
