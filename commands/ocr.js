@@ -103,30 +103,28 @@ export default {
           .toLowerCase();                  // lowercase for easy matching
       }
 
-      function isWeaponDetected(weaponName, ocrText) {
+      function isWeaponDetectedFuzzy(weaponName, ocrText) {
         const cleanOCR = normalizeText(ocrText);
         const cleanWeapon = normalizeText(weaponName);
 
-        const words = cleanWeapon.split(" ");
-        const pattern = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".{0,20}"); // allow up to 20 chars between words
-        const regex = new RegExp(pattern, "i");
+        const fuse = new Fuse([cleanWeapon], {
+          includeScore: true,
+          threshold: 0.4, // lower = stricter, higher = more tolerant
+          ignoreLocation: true,
+        });
 
-        return regex.test(cleanOCR);
+        const result = fuse.search(cleanOCR);
+        return result.length > 0 && result[0].score <= 0.4; // match if similarity is good enough
       }
 
-
       const detected = martialArts.map(name => {
-        const found = isWeaponDetected(name, text);
+        const found = isWeaponDetectedFuzzy(name, text);
         return {
           name,
           found,
           raw: `${name}: **${found ? name : "❌"}**`
         };
       });
-
-
-
-
 
       // -----------------------------------------
       // SCORE DETECTION (3 METHOD PRIORITY ORDER)
@@ -155,22 +153,40 @@ export default {
       // -------------------------------------
       // ROLE DETECTION
       // -------------------------------------
-      const hasWeapon = (n) => detected.some(d => d.name === n && d.found);
+      const hasAnyWeapon = (variants) => detected.some(d => variants.includes(d.name) && d.found);
 
       let role = "Melee DPS";
 
       if (
-        (hasWeapon("Panacea Fan") && hasWeapon("Soulshade Umbrella"))
-        || (hasWeapon("Abanico Panacea") && hasWeapon("Sombrilla de las Almas"))
+        hasAnyWeapon([
+          "Panacea Fan", "Abanico Panacea", "Éventail Panacée", "Allheilfächer"
+        ]) &&
+        hasAnyWeapon([
+          "Soulshade Umbrella", "Sombrilla de las Almas", "Parapluie des Âmes", "Seelenschattenschirm"
+        ])
       ) {
         role = "Healer";
       } 
-      else if ((hasWeapon("Stormbreaker Spear") && hasWeapon("Thundercry Blade"))
-        || (hasWeapon("Lanza Rompetormentas") && hasWeapon("Espada del Trueno"))) {
+      // Tank
+      else if (
+        hasAnyWeapon([
+          "Stormbreaker Spear", "Lanza Rompetormentas", "Lance Fende-Tempête", "Sturmbrecher-Speer"
+        ]) &&
+        hasAnyWeapon([
+          "Thundercry Blade", "Espada del Trueno", "Lame du Tonnerre", "Donnerruf-Klinge"
+        ])
+      ) {
         role = "Tank";
       } 
-      else if ((hasWeapon("Ninefold Umbrella") && hasWeapon("Inkwell Fan"))
-        || (hasWeapon("Sombrilla Primaveral") && hasWeapon("Abanico del Tintero"))) {
+      // Ranged DPS
+      else if (
+        hasAnyWeapon([
+          "Ninefold Umbrella", "Sombrilla Primaveral", "Parapluie Printanier", "Frühlingsschirm"
+        ]) &&
+        hasAnyWeapon([
+          "Inkwell Fan", "Abanico del Tintero", "Éventail Encrier", "Tintenfassfächer"
+        ])
+      ) {
         role = "Ranged DPS";
       }
 
@@ -183,7 +199,7 @@ export default {
         `📝 **Detected Info**
         • **Role:** ${role}
         ${detectedList ? detectedList + "\n" : ""}
-        • **Score (Goose/Ganso):** ⭐ **${gooseScore}**
+        • **Score (Goose):** ⭐ **${gooseScore}**
 
         📄 **OCR Text Detected:**
         \`\`\`
