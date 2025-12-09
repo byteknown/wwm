@@ -155,6 +155,8 @@ export default {
       // final fallback
       if (!gooseScore) gooseScore = 0;
 
+      gooseScore = gooseScore.toFixed(3);
+
       // -------------------------------------
       // ROLE DETECTION
       // -------------------------------------
@@ -195,8 +197,16 @@ export default {
         role = "Ranged DPS";
       }
 
+      const seen = new Set();
+
       const detectedList = detected
         .filter(w => w.found)
+        .filter(w => {
+          const normalized = w.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          if (seen.has(normalized)) return false;
+          seen.add(normalized);
+          return true;
+        })
         .map(w => `• ${w.raw}`)
         .join("\n");
 
