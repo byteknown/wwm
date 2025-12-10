@@ -41,7 +41,7 @@ export default {
         `• **Relative:** ${relative}\n` +
         `• **Short Time:** ${short}\n\n` +
         `Copy the one you need.`,
-      ephemeral: false
+      ephemeral: true
     });
   }
 };
