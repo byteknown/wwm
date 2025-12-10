@@ -102,14 +102,19 @@ export default {
     const worker = await workerPromise;
 
     console.log("Step 5");
-    // OCR for score
-    const [scoreData, weaponData1, weaponData2, idData] = await Promise.all([
-      worker.recognize(cleaned, "eng"),
-      worker.recognize(cleaned2, "eng"),
-      worker.recognize(cleaned3, "eng"),
-      worker.recognize(cleaned4, "eng"),
-    ]);
+    console.log("Score OCR...");
+    const scoreData = await worker.recognize(cleaned, "eng");
 
+    console.log("Weapon1 OCR...");
+    const weaponData1 = await worker.recognize(cleaned2, "eng");
+
+    console.log("Weapon2 OCR...");
+    const weaponData2 = await worker.recognize(cleaned3, "eng");
+
+    console.log("ID OCR...");
+    const idData = await worker.recognize(cleaned4, "eng");
+
+    console.log(scoreData + weaponData1 + weaponData2 + idData);
     console.log("Step 6");
     const scoreText = scoreData.text.replace(/\s+/g, " ").trim();
 
