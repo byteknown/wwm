@@ -16,7 +16,7 @@ export default {
         .setDescription("Minute of the hour (0–59)")
         .setMinValue(0)
         .setMaxValue(59)
-        .setRequired(false)
+        .setRequired(true)
     ),
 
   async execute(interaction) {
@@ -34,7 +34,15 @@ export default {
       target.setDate(target.getDate() + 1);
     }
 
-    const unix = Math.floor(target.getTime() / 1000);
+    const unix = Math.floor(Date.UTC(
+    target.getFullYear(),
+    target.getMonth(),
+    target.getDate(),
+    target.getHours(),
+    target.getMinutes(),
+    target.getSeconds()
+    ) / 1000);
+
 
     const full = `<t:${unix}:F>`;
     const relative = `<t:${unix}:R>`;
