@@ -100,9 +100,6 @@ export default {
 
     console.log("Step 4");
     const worker = await workerPromise;
-    await worker.load();                // load Tesseract core
-    await worker.loadLanguage("eng");   // load English
-    await worker.initialize("eng");     // initialize with English
 
     console.log("Step 5");
     // OCR for score
