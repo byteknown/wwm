@@ -15,7 +15,10 @@ async function sendToOcrServer(buffer) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ image: b64 })
   });
-  const data = await res.json();
+
+  const data = await res.text();
+  console.log(data);
+
   if (data.error) throw new Error(data.error);
   return data;
 }
