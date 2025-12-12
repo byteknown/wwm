@@ -35,13 +35,13 @@ export default {
   async execute(interaction) {
     try {
 
+    await interaction.deferReply({ flags: 64 });
+
     const image = interaction.options.getAttachment("image");
 
     if (!image?.contentType?.startsWith("image/")) {
       return interaction.reply({ content: "❌ Upload a valid image file.", flags: 64 });
     }
-
-    await interaction.deferReply({ flags: 64 });
 
     const response = await fetch(image.url);
     const buffer = await response.arrayBuffer();
