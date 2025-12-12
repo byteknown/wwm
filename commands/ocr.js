@@ -50,7 +50,7 @@ export default {
     const ocrData = await sendToOcrServer(imageBuffer);
     console.log(ocrData);
 
-    let scoreText = ocrData.score ?? "";
+    let scoreText  = ocrData.score ?? "";
     let weaponText1 = ocrData.weapon1 ?? "";
     let weaponText2 = ocrData.weapon2 ?? "";
     let idText = ocrData.id ?? "";
