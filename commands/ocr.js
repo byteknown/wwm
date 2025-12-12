@@ -58,7 +58,7 @@ export default {
     let weaponText2 = fullText;
     let idText = fullText;
 
-    const playerIdMatch = fullText.match(/\b\d{8,}\b/);
+    const playerIdMatch = idText.match(/\b\d{8,}\b/);
     const playerId = playerIdMatch ? playerIdMatch[0] : null;
 
 
