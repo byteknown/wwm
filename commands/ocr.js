@@ -48,11 +48,14 @@ export default {
     const imageBuffer = Buffer.from(buffer);
     
     const ocrData = await sendToOcrServer(imageBuffer);
+    console.log(ocrData);
 
     let scoreText = ocrData.score ?? "";
     let weaponText1 = ocrData.weapon1 ?? "";
     let weaponText2 = ocrData.weapon2 ?? "";
     let idText = ocrData.id ?? "";
+    const playerId = idText ?? null;
+
 
 
     function normalizeText(str) {
