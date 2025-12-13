@@ -6,6 +6,10 @@ import whoami from "./commands/whoami.js";
 import ocr from "./commands/ocr.js";
 import rank from "./commands/rank.js";
 import hammertime from "./commands/time.js";
+import dns from "node:dns";
+
+dns.setDefaultResultOrder("ipv4first");
+
 
 
 

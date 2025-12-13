@@ -24,6 +24,8 @@ export default {
 
     await interaction.deferReply({ flags: 64 });
 
+    console.log("DNS result order:", dns.getDefaultResultOrder());
+
     const image = interaction.options.getAttachment("image");
 
     if (!image?.contentType?.startsWith("image/")) {
