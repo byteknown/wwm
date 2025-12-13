@@ -6,51 +6,8 @@ import { translationMap } from "../data/translationMap.js";
 
 const sqlite = sqlite3.verbose();
 
-const server = process.env.server?.trim();
+const server = process.env.server;
 
-async function sendToOcrServer(buffer) {
-  const b64 = buffer.toString("base64");
-  const submitRes = await fetch(`${server}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ image: b64 }),
-  });
-
-  let submitData;
-  try {
-    submitData = await submitRes.json();
-  } catch (e) {
-    const text = await submitRes.text();
-    console.error("Failed to parse JSON from /ocr submit:", text);
-    throw new Error("OCR submit failed: invalid response");
-  }
-
-  if (!submitRes.ok) throw new Error(submitData.error || "Failed to submit OCR job");
-  const jobId = submitData.job_id;
-
-  const pollInterval = 2000;
-  const maxRetries = 210;
-
-  for (let i = 0; i < maxRetries; i++) {
-    const statusRes = await fetch(`${server}/status/${jobId}`);
-    let statusData;
-    try {
-      statusData = await statusRes.json();
-    } catch (e) {
-      const text = await statusRes.text();
-      console.error(`Invalid JSON from /ocr/status/${jobId}:`, text);
-      await new Promise(r => setTimeout(r, pollInterval));
-      continue; // retry polling instead of crashing
-    }
-
-    if (statusData.status === "done") return { text: statusData.result };
-    if (statusData.status === "error") throw new Error(statusData.result);
-
-    await new Promise(r => setTimeout(r, pollInterval));
-  }
-
-  throw new Error("OCR job timed out");
-}
 
 export default {
   data: new SlashCommandBuilder()
@@ -270,6 +227,50 @@ export default {
     }
   }
 };
+
+async function sendToOcrServer(buffer) {
+  const b64 = buffer.toString("base64");
+  const submitRes = await fetch(`${server}`, { // make sure "/ocr" is included
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ image: b64 }),
+  });
+
+  let submitData;
+  try {
+    submitData = await submitRes.json();
+  } catch (e) {
+    const text = await submitRes.text();
+    console.error("Failed to parse JSON from /ocr submit:", text);
+    throw new Error("OCR submit failed: invalid response");
+  }
+
+  if (!submitRes.ok) throw new Error(submitData.error || "Failed to submit OCR job");
+  const jobId = submitData.job_id;
+
+  const pollInterval = 2000;
+  const maxRetries = 210;
+
+  for (let i = 0; i < maxRetries; i++) {
+    let statusData;
+    try {
+      const statusRes = await fetch(`${server}/status/${jobId}`);
+      statusData = await statusRes.json();
+    } catch (e) {
+      console.error(`Polling error for job ${jobId}:`, e);
+      await new Promise(r => setTimeout(r, pollInterval));
+      continue; // retry polling instead of crashing
+    }
+
+    if (statusData.status === "done") return { text: statusData.result };
+    if (statusData.status === "error") throw new Error(statusData.result);
+
+    await new Promise(r => setTimeout(r, pollInterval));
+  }
+
+  throw new Error("OCR job timed out");
+}
+
 
 // -------------------------------------
 // saveSkills FUNCTION (unchanged)
