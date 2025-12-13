@@ -23,11 +23,10 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 
 app.post('/ocr/callback', async (req, res) => {
-  const { job_id, discordId, text: ocrText } = req.body;
+  const { text: ocrText } = req.body;
 
   // Write OCR text to shared variable
   fullData.text = ocrText;
-  fullData.discordId = discordId;
   console.log("OCR callback received:", req.body);
   
   res.sendStatus(200);

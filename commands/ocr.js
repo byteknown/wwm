@@ -5,7 +5,7 @@ import { martialArts } from "../data/weapons.js";
 import { translationMap } from "../data/translationMap.js";
 import dns from "node:dns";
 import { Agent, fetch } from "undici";
-export const fullData = { text: null, discordId: null };
+export const fullData = { text: null };
 
 
 const sqlite = sqlite3.verbose();
