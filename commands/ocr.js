@@ -228,42 +228,55 @@ export default {
   }
 };
 
+async function safeReadJson(res, label = "response") {
+  const raw = await res.text(); // read body ONCE
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    console.error(`Invalid JSON from ${label}:`, raw);
+    throw new Error(`${label} returned invalid JSON`);
+  }
+}
+
+
 async function sendToOcrServer(buffer) {
   const b64 = buffer.toString("base64");
-  const submitRes = await fetch(`${server}`, { // make sure "/ocr" is included
+  const submitRes = await fetch(`${server}/ocr`, { // make sure "/ocr" is included
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ image: b64 }),
   });
 
-  let submitData;
-  try {
-    submitData = await submitRes.json();
-  } catch (e) {
-    const text = await submitRes.text();
-    console.error("Failed to parse JSON from /ocr submit:", text);
-    throw new Error("OCR submit failed: invalid response");
-  }
+  const submitData = await safeReadJson(submitRes, "/ocr");
 
-  if (!submitRes.ok) throw new Error(submitData.error || "Failed to submit OCR job");
+  if (!submitRes.ok) {
+    throw new Error(submitData.error || "Failed to submit OCR job");
+  }
   const jobId = submitData.job_id;
 
   const pollInterval = 2000;
   const maxRetries = 210;
 
   for (let i = 0; i < maxRetries; i++) {
-    let statusData;
+  let statusData;
+
     try {
-      const statusRes = await fetch(`${server}/status/${jobId}`);
-      statusData = await statusRes.json();
+      const statusRes = await fetch(`${server}/ocr/status/${jobId}`);
+      statusData = await safeReadJson(statusRes, `/ocr/status/${jobId}`);
     } catch (e) {
-      console.error(`Polling error for job ${jobId}:`, e);
+      console.error(`Polling error for job ${jobId}:`, e.message);
       await new Promise(r => setTimeout(r, pollInterval));
-      continue; // retry polling instead of crashing
+      continue;
     }
 
-    if (statusData.status === "done") return { text: statusData.result };
-    if (statusData.status === "error") throw new Error(statusData.result);
+    if (statusData.status === "done") {
+      return { text: statusData.result };
+    }
+
+    if (statusData.status === "error") {
+      throw new Error(statusData.result);
+    }
 
     await new Promise(r => setTimeout(r, pollInterval));
   }
