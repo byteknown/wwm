@@ -3,6 +3,7 @@ import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 import { martialArts } from "../data/weapons.js";
 import { translationMap } from "../data/translationMap.js";
+import dns from "node:dns";
 
 const sqlite = sqlite3.verbose();
 
