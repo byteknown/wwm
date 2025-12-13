@@ -30,8 +30,9 @@ async function sendToOcrServer(buffer) {
     const statusData = await statusRes.json();
 
     if (statusData.status === "done") {
-      return statusData.result;
+      return { text: statusData.result }; // ✅ now ocrData.text exists
     }
+
     if (statusData.status === "error") {
       throw new Error(statusData.result);
     }
