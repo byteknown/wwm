@@ -10,17 +10,37 @@ const server = process.env.server?.trim();
 
 async function sendToOcrServer(buffer) {
   const b64 = buffer.toString("base64");
-  const res = await fetch(server, {
+  const submitRes = await fetch(`${server}/ocr`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ image: b64 })
+    body: JSON.stringify({ image: b64 }),
   });
 
-  const data = await res.text();
-  console.log(data);
+  const submitData = await submitRes.json();
+  if (!submitRes.ok) throw new Error(submitData.error || "Failed to submit OCR job");
 
-  if (data.error) throw new Error(data.error);
-  return data;
+  const jobId = submitData.job_id;
+
+  // 2️⃣ Poll for result
+  const pollInterval = 2000; // 2 seconds
+  const maxRetries = 210; // ~5 minutes max
+
+  for (let i = 0; i < maxRetries; i++) {
+    const statusRes = await fetch(`${server}/ocr/status/${jobId}`);
+    const statusData = await statusRes.json();
+
+    if (statusData.status === "done") {
+      return statusData.result;
+    }
+    if (statusData.status === "error") {
+      throw new Error(statusData.result);
+    }
+
+    // wait before polling again
+    await new Promise((r) => setTimeout(r, pollInterval));
+  }
+
+  throw new Error("OCR job timed out");
 }
 
 
