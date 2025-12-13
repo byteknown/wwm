@@ -10,41 +10,47 @@ const server = process.env.server?.trim();
 
 async function sendToOcrServer(buffer) {
   const b64 = buffer.toString("base64");
-  const submitRes = await fetch(`${server}`, {
+  const submitRes = await fetch(`${server}/ocr`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ image: b64 }),
   });
 
-  const submitData = await submitRes.json();
-  if (!submitRes.ok) throw new Error(submitData.error || "Failed to submit OCR job");
+  let submitData;
+  try {
+    submitData = await submitRes.json();
+  } catch (e) {
+    const text = await submitRes.text();
+    console.error("Failed to parse JSON from /ocr submit:", text);
+    throw new Error("OCR submit failed: invalid response");
+  }
 
+  if (!submitRes.ok) throw new Error(submitData.error || "Failed to submit OCR job");
   const jobId = submitData.job_id;
 
-  // 2️⃣ Poll for result
-  const pollInterval = 2000; // 2 seconds
-  const maxRetries = 210; // ~5 minutes max
+  const pollInterval = 2000;
+  const maxRetries = 210;
 
   for (let i = 0; i < maxRetries; i++) {
     const statusRes = await fetch(`${server}/ocr/status/${jobId}`);
-    const statusData = await statusRes.json();
-
-    if (statusData.status === "done") {
-      return { text: statusData.result }; // ✅ now ocrData.text exists
+    let statusData;
+    try {
+      statusData = await statusRes.json();
+    } catch (e) {
+      const text = await statusRes.text();
+      console.error(`Invalid JSON from /ocr/status/${jobId}:`, text);
+      await new Promise(r => setTimeout(r, pollInterval));
+      continue; // retry polling instead of crashing
     }
 
-    if (statusData.status === "error") {
-      throw new Error(statusData.result);
-    }
+    if (statusData.status === "done") return { text: statusData.result };
+    if (statusData.status === "error") throw new Error(statusData.result);
 
-    // wait before polling again
-    await new Promise((r) => setTimeout(r, pollInterval));
+    await new Promise(r => setTimeout(r, pollInterval));
   }
 
   throw new Error("OCR job timed out");
 }
-
-
 
 export default {
   data: new SlashCommandBuilder()
